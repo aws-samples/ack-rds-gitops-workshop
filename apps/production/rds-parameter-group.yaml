@@ -1,0 +1,14 @@
+apiVersion: rds.services.k8s.aws/v1alpha1
+kind: DBParameterGroup
+metadata:
+    name: pg14cluparamg
+    namespace: retailapp
+spec:
+    description: "customer param group"
+    family: postgres14
+    name: pg14
+    parameterOverrides: 
+       autovacuum_analyze_scale_factor: "0.01"
+    tags:
+    - key:  env
+      value: prod

@@ -1,0 +1,138 @@
+version: '3'
+
+services:
+
+  redis-0:
+    image: redis:latest
+    restart: always
+    ports:
+      - 6379:6379
+    command: ["redis-server", "--appendonly yes", "--cluster-enabled yes", "--loglevel verbose"]
+    environment:
+      - ALLOW_EMPTY_PASSWORD=yes
+    volumes: 
+      - ./redisdata0:/data
+
+  redis-1:
+    image: redis:latest
+    restart: always
+    ports:
+      - 6380:6379
+    command: ["redis-server", "--appendonly yes", "--cluster-enabled yes", "--loglevel verbose"]
+    environment:
+      - ALLOW_EMPTY_PASSWORD=yes
+    volumes: 
+      - ./redisdata1:/data
+
+  postgresql:
+    image: postgres:14
+    command: >
+      -c ssl=on
+      -c ssl_cert_file=/var/lib/postgresql/server.crt
+      -c ssl_key_file=/var/lib/postgresql/server.key
+    ports:
+      - 5432:5432
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - PGDATA=/pgdata
+    volumes:
+      - ./setup_schema.sql:/docker-entrypoint-initdb.d/init.sql
+      - ./pgdata:/pgdata
+      - ./cert/server.crt:/var/lib/postgresql/server.crt
+      - ./cert/server.key:/var/lib/postgresql/server.key
+
+  webapp:
+    depends_on:
+      - postgresql
+    build:
+      context: ./webapp
+      dockerfile: Dockerfile
+    image: ksarabu/webapp:2.0
+    ports:
+      - 8443:8443
+    volumes:
+      - ./appdata:/appdata
+    environment:
+      - DATABASE_HOST=host.docker.internal
+      - DATABASE_RO_HOST=host.docker.internal
+      - ECHOST=host.docker.internal:11211
+      - DATABASE_PORT=5432
+      - DATABASE_USER=dbuser1
+      - DATABASE_PASSWORD=eksackdemo
+      - DATABASE_DB_NAME=eksackdemo
+      - PRODUCTS_SERVICE=http://host.docker.internal:8444
+      - USER_SERVICE=http://host.docker.internal:8446
+      - ORDER_SERVICE=http://host.docker.internal:8448
+      - KART_SERVICE=http://host.docker.internal:8445
+
+  product:
+    depends_on:
+      - postgresql
+    build:
+      context: ./product
+      dockerfile: Dockerfile
+    image: ksarabu/product:2.0
+    ports:
+      - 8444:8444
+    environment:
+      - DATABASE_HOST=host.docker.internal
+      - DATABASE_RO_HOST=host.docker.internal
+      - DATABASE_PORT=5432
+      - DATABASE_USER=dbuser1
+      - DATABASE_PASSWORD=eksackdemo
+      - DATABASE_DB_NAME=eksackdemo
+
+  user:
+    depends_on:
+      - postgresql
+    build:
+      context: ./user
+      dockerfile: Dockerfile
+    image: ksarabu/user:2.0
+    ports:
+      - 8446:8446
+    environment:
+      - DATABASE_HOST=host.docker.internal
+      - DATABASE_RO_HOST=host.docker.internal
+      - DATABASE_PORT=5432
+      - DATABASE_USER=dbuser1
+      - DATABASE_PASSWORD=eksackdemo
+      - DATABASE_DB_NAME=eksackdemo
+      - MEMDB_HOST=host.docker.internal
+      - MEMDB_PORT=6379
+      - MEMDB_PASS=krishna
+
+  order:
+    depends_on:
+      - postgresql
+    build:
+      context: ./order
+      dockerfile: Dockerfile
+    image: ksarabu/order:2.0
+    ports:
+      - 8448:8448
+    environment:
+      - DATABASE_HOST=host.docker.internal
+      - DATABASE_RO_HOST=host.docker.internal
+      - DATABASE_PORT=5432
+      - DATABASE_USER=dbuser1
+      - DATABASE_PASSWORD=eksackdemo
+      - DATABASE_DB_NAME=eksackdemo
+
+  kart:
+    depends_on:
+      - postgresql
+    build:
+      context: ./kart
+      dockerfile: Dockerfile
+    image: ksarabu/kart:2.0
+    ports:
+      - 8445:8445
+    environment:
+      - DATABASE_HOST=host.docker.internal
+      - DATABASE_RO_HOST=host.docker.internal
+      - DATABASE_PORT=5432
+      - DATABASE_USER=dbuser1
+      - DATABASE_PASSWORD=eksackdemo
+      - DATABASE_DB_NAME=eksackdemo

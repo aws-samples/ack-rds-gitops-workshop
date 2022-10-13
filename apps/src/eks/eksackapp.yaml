@@ -1,0 +1,649 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: eksack
+  labels:
+    app: eksack
+---
+kind: StorageClass
+apiVersion: storage.k8s.io/v1
+metadata:
+  name: efs-sc
+provisioner: efs.csi.aws.com
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: eksack-secret
+  namespace: eksack
+type: Opaque
+data:
+  database_password: ZWtzZ2RiZGVtbw==
+  database_user: ZGJ1c2VyMQ==
+  database_host: cmRzcGcxLmN0ajkzdXBjcGNudy51cy1lYXN0LTIucmRzLmFtYXpvbmF3cy5jb20=
+  database_port: NTQzMg==
+  database_db_name: ZWtzYWNrZGVtbw==
+  database_rodb_name: ZWtzYWNrZGVtbw==
+  secret_key: ZWtzZ2RiZGVtb3NlY3JldA==
+  authtoken: ZWtzZ2RiZGVtb3Rva2Vu
+  kart_service: aHR0cDovL2thcnQuYWNrZWNrLnN2Yy5jbHVzdGVyLmxvY2FsOjg0NDU=
+  product_service: aHR0cDovL3Byb2R1Y3QuZWtzYWNrLnN2Yy5jbHVzdGVyLmxvY2FsOjg0NDQ=
+  user_service: aHR0cDovL3VzZXIuZWtzYWNrLnN2Yy5jbHVzdGVyLmxvY2FsOjg0NDY=
+  order_service: aHR0cDovL29yZGVyLmVrc2Fjay5zdmMuY2x1c3Rlci5sb2NhbDo4NDQ4
+  memdb_host: Y2x1c3RlcmNmZy5tZW1kYjEucnlrb3N3Lm1lbW9yeWRiLnVzLWVhc3QtMi5hbWF6b25hd3MuY29t
+  memdb_port: NjM3OQ==
+  memdb_user: ZGVmYXVsdA==
+  memdb_pass: ZGVmYXVsdA==
+--- 
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kart-deployment
+  namespace: eksack
+  labels:
+    app: eksack
+    service: kart
+spec:
+  replicas: 2
+  strategy:
+    rollingUpdate:
+      maxSurge: 3
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      app: eksack
+      service: kart
+  template:
+    metadata:
+      labels:
+        app: eksack
+        service: kart
+    spec:
+      restartPolicy: Always
+      containers:
+      - name: kart
+        image: 194322967097.dkr.ecr.us-east-2.amazonaws.com/eksack/kart:1.5
+        imagePullPolicy: Always
+        ports:
+         - containerPort: 8445
+        env:
+          - name: DATABASE_HOST
+            valueFrom:
+              secretKeyRef:
+                 name: eksack-secret
+                 key: database_host
+          - name: DATABASE_PORT
+            valueFrom:
+              secretKeyRef:
+                 name: eksack-secret
+                 key: database_port
+          - name: DATABASE_USER
+            valueFrom:
+              secretKeyRef:
+                 name: eksack-secret
+                 key: database_user
+          - name: DATABASE_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                 name: eksack-secret
+                 key: database_password
+          - name: DATABASE_DB_NAME
+            valueFrom:
+              secretKeyRef:
+                 name: eksack-secret
+                 key: database_db_name
+          - name: DATABASE_RODB_NAME
+            valueFrom:
+              secretKeyRef:
+                 name: eksack-secret
+                 key: database_rodb_name
+          - name: SECRET_KEY
+            valueFrom:
+              secretKeyRef:
+                 name: eksack-secret
+                 key: secret_key
+          - name: AUTHTOKEN
+            valueFrom:
+              secretKeyRef:
+                 name: eksack-secret
+                 key: authtoken
+          - name: MEMDB_HOST
+            valueFrom:
+              secretKeyRef:
+                 name: eksack-secret
+                 key: memdb_host
+          - name: MEMDB_PORT
+            valueFrom:
+              secretKeyRef:
+                 name: eksack-secret
+                 key: memdb_port
+          - name: MEMDB_USER
+            valueFrom:
+              secretKeyRef:
+                 name: eksack-secret
+                 key: memdb_user
+          - name: MEMDB_PASS
+            valueFrom:
+              secretKeyRef:
+                 name: eksack-secret
+                 key: memdb_pass
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: product-deployment
+  namespace: eksack
+  labels:
+    app: eksack
+    service: product
+spec:
+  replicas: 2
+  strategy:
+    rollingUpdate:
+      maxSurge: 3
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      app: eksack
+      service: product
+  template:
+    metadata:
+      labels:
+        app: eksack
+        service: product
+    spec:
+      restartPolicy: Always
+      containers:
+      - name: product
+        image: 194322967097.dkr.ecr.us-east-2.amazonaws.com/eksack/product:1.5
+        imagePullPolicy: Always
+        ports:
+         - containerPort: 8444
+        env:
+          - name: DATABASE_HOST
+            valueFrom:
+              secretKeyRef:
+                 name: eksack-secret
+                 key: database_host
+          - name: DATABASE_PORT
+            valueFrom:
+              secretKeyRef:
+                 name: eksack-secret
+                 key: database_port
+          - name: DATABASE_USER
+            valueFrom:
+              secretKeyRef:
+                 name: eksack-secret
+                 key: database_user
+          - name: DATABASE_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                 name: eksack-secret
+                 key: database_password
+          - name: DATABASE_DB_NAME
+            valueFrom:
+              secretKeyRef:
+                 name: eksack-secret
+                 key: database_db_name
+          - name: DATABASE_RODB_NAME
+            valueFrom:
+              secretKeyRef:
+                 name: eksack-secret
+                 key: database_rodb_name
+          - name: SECRET_KEY
+            valueFrom:
+              secretKeyRef:
+                 name: eksack-secret
+                 key: secret_key
+          - name: AUTHTOKEN
+            valueFrom:
+              secretKeyRef:
+                 name: eksack-secret
+                 key: authtoken
+          - name: MEMDB_HOST
+            valueFrom:
+              secretKeyRef:
+                 name: eksack-secret
+                 key: memdb_host
+          - name: MEMDB_PORT
+            valueFrom:
+              secretKeyRef:
+                 name: eksack-secret
+                 key: memdb_port
+          - name: MEMDB_USER
+            valueFrom:
+              secretKeyRef:
+                 name: eksack-secret
+                 key: memdb_user
+          - name: MEMDB_PASS
+            valueFrom:
+              secretKeyRef:
+                 name: eksack-secret
+                 key: memdb_pass
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: user-deployment
+  namespace: eksack
+  labels:
+    app: eksack
+    service: user
+spec:
+  replicas: 2
+  strategy:
+    rollingUpdate:
+      maxSurge: 3
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      app: eksack
+      service: user
+  template:
+    metadata:
+      labels:
+        app: eksack
+        service: user
+    spec:
+      restartPolicy: Always
+      containers:
+      - name: user
+        image: 194322967097.dkr.ecr.us-east-2.amazonaws.com/eksack/user:1.5
+        imagePullPolicy: Always
+        ports:
+         - containerPort: 8446
+        env:
+          - name: DATABASE_HOST
+            valueFrom:
+              secretKeyRef:
+                 name: eksack-secret
+                 key: database_host
+          - name: DATABASE_PORT
+            valueFrom:
+              secretKeyRef:
+                 name: eksack-secret
+                 key: database_port
+          - name: DATABASE_USER
+            valueFrom:
+              secretKeyRef:
+                 name: eksack-secret
+                 key: database_user
+          - name: DATABASE_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                 name: eksack-secret
+                 key: database_password
+          - name: DATABASE_DB_NAME
+            valueFrom:
+              secretKeyRef:
+                 name: eksack-secret
+                 key: database_db_name
+          - name: DATABASE_RODB_NAME
+            valueFrom:
+              secretKeyRef:
+                 name: eksack-secret
+                 key: database_rodb_name
+          - name: SECRET_KEY
+            valueFrom:
+              secretKeyRef:
+                 name: eksack-secret
+                 key: secret_key
+          - name: AUTHTOKEN
+            valueFrom:
+              secretKeyRef:
+                 name: eksack-secret
+                 key: authtoken
+          - name: MEMDB_HOST
+            valueFrom:
+              secretKeyRef:
+                 name: eksack-secret
+                 key: memdb_host
+          - name: MEMDB_PORT
+            valueFrom:
+              secretKeyRef:
+                 name: eksack-secret
+                 key: memdb_port
+          - name: MEMDB_USER
+            valueFrom:
+              secretKeyRef:
+                 name: eksack-secret
+                 key: memdb_user
+          - name: MEMDB_PASS
+            valueFrom:
+              secretKeyRef:
+                 name: eksack-secret
+                 key: memdb_pass
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: webapp
+  namespace: eksack
+  labels:
+    app: eksack
+    service: webapp
+spec:
+  replicas: 2
+  strategy:
+    rollingUpdate:
+      maxSurge: 2
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      app: eksack
+      service: webapp
+  template:
+    metadata:
+      labels:
+        app: eksack
+        service: webapp
+    spec:
+      restartPolicy: Always
+      containers:
+      - name: webapp
+        image: 194322967097.dkr.ecr.us-east-2.amazonaws.com/eksack/webapp:1.5
+        imagePullPolicy: Always
+        ports:
+         - containerPort: 8443
+        env:
+          - name: DATABASE_HOST
+            valueFrom:
+              secretKeyRef:
+                 name: eksack-secret
+                 key: database_host
+          - name: DATABASE_PORT
+            valueFrom:
+              secretKeyRef:
+                 name: eksack-secret
+                 key: database_port
+          - name: DATABASE_USER
+            valueFrom:
+              secretKeyRef:
+                 name: eksack-secret
+                 key: database_user
+          - name: DATABASE_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                 name: eksack-secret
+                 key: database_password
+          - name: DATABASE_DB_NAME
+            valueFrom:
+              secretKeyRef:
+                 name: eksack-secret
+                 key: database_db_name
+          - name: DATABASE_RODB_NAME
+            valueFrom:
+              secretKeyRef:
+                 name: eksack-secret
+                 key: database_rodb_name
+          - name: SECRET_KEY
+            valueFrom:
+              secretKeyRef:
+                 name: eksack-secret
+                 key: secret_key
+          - name: AUTHTOKEN
+            valueFrom:
+              secretKeyRef:
+                 name: eksack-secret
+                 key: authtoken
+          - name: PRODUCTS_SERVICE
+            valueFrom:
+              secretKeyRef:
+                 name: eksack-secret
+                 key: product_service
+          - name: KART_SERVICE
+            valueFrom:
+              secretKeyRef:
+                 name: eksack-secret
+                 key: kart_service
+          - name: USER_SERVICE
+            valueFrom:
+              secretKeyRef:
+                 name: eksack-secret
+                 key: user_service
+          - name: ORDER_SERVICE
+            valueFrom:
+              secretKeyRef:
+                 name: eksack-secret
+                 key: order_service
+          - name: MEMDB_HOST
+            valueFrom:
+              secretKeyRef:
+                 name: eksack-secret
+                 key: memdb_host
+          - name: MEMDB_PORT
+            valueFrom:
+              secretKeyRef:
+                 name: eksack-secret
+                 key: memdb_port
+          - name: MEMDB_USER
+            valueFrom:
+              secretKeyRef:
+                 name: eksack-secret
+                 key: memdb_user
+          - name: MEMDB_PASS
+            valueFrom:
+              secretKeyRef:
+                 name: eksack-secret
+                 key: memdb_pass
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: order-deployment
+  namespace: eksack
+  labels:
+    app: eksack
+    service: order
+spec:
+  replicas: 2
+  strategy:
+    rollingUpdate:
+      maxSurge: 3
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      app: eksack
+      service: order
+  template:
+    metadata:
+      labels:
+        app: eksack
+        service: order
+    spec:
+      restartPolicy: Always
+      containers:
+      - name: order
+        image: 194322967097.dkr.ecr.us-east-2.amazonaws.com/eksack/order:1.5
+        imagePullPolicy: Always
+        ports:
+         - containerPort: 8448
+        env:
+          - name: DATABASE_HOST
+            valueFrom:
+              secretKeyRef:
+                 name: eksack-secret
+                 key: database_host
+          - name: DATABASE_PORT
+            valueFrom:
+              secretKeyRef:
+                 name: eksack-secret
+                 key: database_port
+          - name: DATABASE_USER
+            valueFrom:
+              secretKeyRef:
+                 name: eksack-secret
+                 key: database_user
+          - name: DATABASE_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                 name: eksack-secret
+                 key: database_password
+          - name: DATABASE_DB_NAME
+            valueFrom:
+              secretKeyRef:
+                 name: eksack-secret
+                 key: database_db_name
+          - name: DATABASE_RODB_NAME
+            valueFrom:
+              secretKeyRef:
+                 name: eksack-secret
+                 key: database_rodb_name
+          - name: SECRET_KEY
+            valueFrom:
+              secretKeyRef:
+                 name: eksack-secret
+                 key: secret_key
+          - name: AUTHTOKEN
+            valueFrom:
+              secretKeyRef:
+                 name: eksack-secret
+                 key: authtoken
+          - name: MEMDB_HOST
+            valueFrom:
+              secretKeyRef:
+                 name: eksack-secret
+                 key: memdb_host
+          - name: MEMDB_PORT
+            valueFrom:
+              secretKeyRef:
+                 name: eksack-secret
+                 key: memdb_port
+          - name: MEMDB_USER
+            valueFrom:
+              secretKeyRef:
+                 name: eksack-secret
+                 key: memdb_user
+          - name: MEMDB_PASS
+            valueFrom:
+              secretKeyRef:
+                 name: eksack-secret
+                 key: memdb_pass
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: kart
+  namespace: eksack
+  labels:
+    app: eksack
+    service: kart
+spec:
+  type: ClusterIP
+  selector:
+    app: eksack
+    service: kart
+  ports:
+    - name: kart
+      protocol: TCP
+      port: 8445
+      targetPort: 8445
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: product
+  namespace: eksack
+  labels:
+    app: eksack
+    service: product
+spec:
+  type: ClusterIP
+  selector:
+    app: eksack
+    service: product
+  ports:
+    - name: product
+      protocol: TCP
+      port: 8444
+      targetPort: 8444
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: user
+  namespace: eksack
+  labels:
+    app: eksack
+    service: user
+spec:
+  type: ClusterIP
+  selector:
+    app: eksack
+    service: user
+  ports:
+    - name: user
+      protocol: TCP
+      port: 8446
+      targetPort: 8446
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: order
+  namespace: eksack
+  labels:
+    app: eksack
+    service: order
+spec:
+  type: ClusterIP
+  selector:
+    app: eksack
+    service: order
+  ports:
+    - name: order
+      protocol: TCP
+      port: 8448
+      targetPort: 8448
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: webappnp
+  namespace: eksack
+  labels:
+    service: webappnp
+spec:
+  type: NodePort
+  selector:
+    app: eksack
+    service: webapp
+  ports:
+    - port: 80
+      targetPort: 8443
+      protocol: TCP
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: webapp
+  namespace: eksack
+  labels:
+    app: eksack
+    service: webapp
+  annotations:
+    kubernetes.io/ingress.class: alb
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/tags: Application=webapp
+    alb.ingress.kubernetes.io/target-type: instance
+    alb.ingress.kubernetes.io/healthcheck-protocol: HTTP
+    alb.ingress.kubernetes.io/healthcheck-port: traffic-port
+    alb.ingress.kubernetes.io/healthcheck-path: /healthcheck
+    alb.ingress.kubernetes.io/healthcheck-interval-seconds: '60'
+    alb.ingress.kubernetes.io/healthcheck-timeout-seconds: '30'
+    alb.ingress.kubernetes.io/success-codes: '200'
+    alb.ingress.kubernetes.io/healthy-threshold-count: '2'
+    alb.ingress.kubernetes.io/unhealthy-threshold-count: '5'
+    alb.ingress.kubernetes.io/target-group-attributes: stickiness.enabled=true, load_balancing.algorithm.type=least_outstanding_requests
+spec:
+  rules:
+   - http:
+      paths:
+       - path: /
+         pathType: Prefix
+         backend:
+          service:
+            name: webappnp
+            port:
+              number: 80
+---

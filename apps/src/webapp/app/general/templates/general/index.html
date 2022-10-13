@@ -1,0 +1,200 @@
+{% include "base.html" %}
+
+<!-- ========================= SECTION INTRO ========================= -->
+<section class="section-intro padding-y-sm">
+<div class="container">
+
+<div class="intro-banner-wrap">
+  <img src="/static/images/banners/banner.png" class="img-fluid rounded">
+</div>
+
+</div> <!-- container //  -->
+</section>
+<!-- ========================= SECTION INTRO END// ========================= -->
+
+
+<!-- ========================= SECTION FEATURE ========================= -->
+<section class="section-content padding-y-sm">
+<div class="container">
+<article class="card card-body">
+
+
+<div class="row">
+  <div class="col-md-4">  
+    <figure class="item-feature">
+      <span class="text-primary"><i class="fa fa-2x fa-truck"></i></span>
+      <figcaption class="pt-3">
+        <h5 class="title">Fast delivery</h5>
+      </figcaption>
+    </figure> <!-- iconbox // -->
+  </div><!-- col // -->
+  <div class="col-md-4">
+    <figure  class="item-feature">
+      <span class="text-primary"><i class="fa fa-2x fa-landmark"></i></span>  
+      <figcaption class="pt-3">
+        <h5 class="title">Creative Strategy</h5>
+      </figcaption>
+    </figure> <!-- iconbox // -->
+  </div><!-- col // -->
+    <div class="col-md-4">
+    <figure  class="item-feature">
+      <span class="text-primary"><i class="fa fa-2x fa-lock"></i></span>
+      <figcaption class="pt-3">
+        <h5 class="title">High secured </h5>
+      </figcaption>
+    </figure> <!-- iconbox // -->
+  </div> <!-- col // -->
+</div>
+</article>
+
+</div> <!-- container .//  -->
+</section>
+<!-- ========================= SECTION FEATURE END// ========================= -->
+
+
+<!-- ========================= SECTION CONTENT ========================= -->
+<section class="section-content">
+<div class="container">
+
+<header class="section-heading">
+  <h3 class="section-title">Popular products</h3>
+</header><!-- sect-heading -->
+
+  
+<div class="row">
+{% for product in products %}
+  <div class="col-md-3">
+    <div href="#" class="card card-product-grid">
+      <a href="#" class="img-wrap"> <img src={{ product['img_url'] }}> </a>
+      <figcaption class="info-wrap">
+	      <a href="products/{{ product['category'] }}/{{ product['name'] }}" class="title">{{ product['name'] }}</a>
+        
+        <div class="rating-wrap">
+          <ul class="rating-stars">
+            {% if product['rating'] %}
+            <li style="width:{{ product['rating'] }}%" class="stars-active"> 
+            {%else%}
+            <li style="width:84%" class="stars-active"> 
+            {% endif %}
+              <i class="fa fa-star"></i><i class="fa fa-star"></i><i class="fa fa-star"></i><i class="fa fa-star"></i><i class="fa fa-star"></i>
+            </li>
+            <li>
+              <i class="fa fa-star"></i><i class="fa fa-star"></i><i class="fa fa-star"></i><i class="fa fa-star"></i><i class="fa fa-star"></i> 
+            </li>
+          </ul>
+          {% if product['rating'] %}
+          <span class="label-rating text-muted"> {{ product['review_cnt'] }} reviews</span>
+          {%else%}
+          <span class="label-rating text-muted"> {{ product['review_cnt'] }} reviews</span>
+          {% endif %}
+        </div>
+        <div class="price mt-1">${{ product['price'] }}</div> <!-- price-wrap.// -->
+      </figcaption>
+    </div>
+  </div> <!-- col.// -->
+{% endfor %}
+</div> <!-- row.// -->
+
+</div> <!-- container .//  -->
+</section>
+<!-- ========================= SECTION CONTENT END// ========================= -->
+
+
+
+<!-- ========================= SECTION CONTENT ========================= -->
+<section class="section-content">
+<div class="container">
+
+<header class="section-heading">
+  <h3 class="section-title">New arrived</h3>
+</header><!-- sect-heading -->
+
+<div class="row">
+</div> <!-- row.// -->
+
+</div> <!-- container .//  -->
+</section>
+<!-- ========================= SECTION CONTENT END// ========================= -->
+
+
+
+<!-- ========================= SECTION CONTENT ========================= -->
+<section class="section-content padding-bottom-sm">
+<div class="container">
+
+<header class="section-heading">
+  <a href="#" class="btn btn-outline-primary float-right">See all</a>
+  <h3 class="section-title">Recommended</h3>
+</header><!-- sect-heading -->
+
+<div class="row">
+</div> <!-- row.// -->
+
+</div> <!-- container .//  -->
+</section>
+<!-- ========================= SECTION CONTENT END// ========================= -->
+
+<!-- ========================= SECTION  ========================= -->
+<section class="section-name bg padding-y-sm">
+<div class="container">
+<header class="section-heading">
+  <h3 class="section-title">Our Brands</h3>
+</header><!-- sect-heading -->
+
+<div class="row">
+  
+  <div class="col-md-2  col-6">
+    <figure class="box item-logo">
+      <a href="#"><img src="/static/images/logos/logo4.png"></a>
+      <figcaption class="border-top pt-2">72 Products</figcaption>
+    </figure> <!-- item-logo.// -->
+  </div> <!-- col.// -->
+  
+</div> <!-- row.// -->
+</div><!-- container // -->
+</section>
+<!-- ========================= SECTION  END// ========================= -->
+
+
+
+<!-- ========================= SECTION  ========================= -->
+<section class="section-name padding-y">
+<div class="container">
+
+<h3 class="mb-3">Download reInvent Fashions app demo soon</h3>
+
+<a href="#"><img src="/static/images/misc/appstore.png" height="40"></a>
+
+</div><!-- container // -->
+</section>
+<!-- ========================= SECTION  END// ======================= -->
+
+
+
+
+<!-- ========================= FOOTER ========================= -->
+<footer class="section-footer border-top bg">
+  <div class="container">
+
+    <section class="footer-bottom row">
+      <div class="col-md-2">
+        <p class="text-muted"> &copy 2021 Octank Fashions </p>
+      </div>
+      <div class="col-md-8 text-md-center">
+        <span  class="px-2">support@reinventfashions.com</span>
+        <span  class="px-2">+1-800-800-1234</span>
+        <span  class="px-2">1 reInvent Blvd, Richmond, VA, USA</span>
+      </div>
+      <div class="col-md-2 text-md-right text-muted">
+        <i class="fab fa-lg fa-cc-visa"></i>
+        <i class="fab fa-lg fa-cc-paypal"></i>
+        <i class="fab fa-lg fa-cc-mastercard"></i>
+      </div>
+    </section>
+  </div><!-- //container -->
+</footer>
+<!-- ========================= FOOTER END // ========================= -->
+
+
+</body>
+</html>
