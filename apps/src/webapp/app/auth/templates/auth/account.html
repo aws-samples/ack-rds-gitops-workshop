@@ -1,0 +1,40 @@
+{%include "base.html" %}
+<section class="section-content padding-y" style="min-height:84vh">
+
+<!-- ============================ COMPONENT LOGIN   ================================= -->
+  <div class="card mx-auto" style="max-width: 380px; margin-top:100px;">
+      <div class="card-body">
+      <h4 class="card-title mb-4">Account Details</h4>
+
+{% for account in acctinfo %}
+<div class="row">
+  <div href="#" class="card card-product-grid">
+   <figcaption class="info-wrap">
+        <a href="#" class="title">User Email : {{ account['email'] }}</a>
+   </figcaption>
+  </div>
+</div>
+<div class="row">
+  <div href="#" class="card card-product-grid">
+   <figcaption class="info-wrap">
+        <a href="#" class="title">User Fist Name: {{ account['fname'] }}</a>
+   </figcaption>
+  </div>
+</div>
+<div class="row">
+  <div href="#" class="card card-product-grid">
+   <figcaption class="info-wrap">
+        <a href="#" class="title">User Last Name: {{ account['lname'] }}</a>
+   </figcaption>
+  </div>
+</div>
+{% endfor %}
+
+      </div> <!-- card-body.// -->
+    </div> <!-- card .// -->
+
+     <br><br>
+<!-- ============================ COMPONENT LOGIN  END.// ================================= -->
+
+
+</section>

@@ -1,0 +1,51 @@
+apiVersion: memorydb.services.k8s.aws/v1alpha1
+kind: Cluster
+metadata:
+  name: "memorydb-cluster"
+  namespace: retailapp
+spec:
+  name: "memorydb"
+  nodeType: db.t4g.small
+  aclName: open-access
+  securityGroupIDs:
+    - <vpcSecurityGroupIDs>
+  subnetGroupName: <MemdbSubnetGroupName>
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: memorydb-cluster-conn-cm
+  namespace: retailapp
+data: {}
+---
+apiVersion: services.k8s.aws/v1alpha1
+kind: FieldExport
+metadata:
+  name: memorydb-cluster-host
+  namespace: retailapp
+spec:
+  to:
+    name: memorydb-cluster-conn-cm
+    kind: configmap
+  from:
+    path: ".status.clusterEndpoint.address"
+    resource:
+      group: memorydb.services.k8s.aws
+      kind: Cluster
+      name: memorydb-cluster
+---
+apiVersion: services.k8s.aws/v1alpha1
+kind: FieldExport
+metadata:
+  name: memorydb-cluster-port
+  namespace: retailapp
+spec:
+  to:
+    name: memorydb-cluster-conn-cm
+    kind: configmap
+  from:
+    path: ".status.clusterEndpoint.port"
+    resource:
+      group: memorydb.services.k8s.aws
+      kind: Cluster
+      name: memorydb-cluster

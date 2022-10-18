@@ -1,0 +1,17 @@
+# Product service test
+http://product.retailapp.svc.cluster.local:8444/products/popularitems?top=5
+curl http://product.retailapp.svc.cluster.local:8444/products/getproducts?productlist=2
+
+# Order service test
+curl -XPOST -H 'Content-Type: application/json' \
+    -d '{"email": "user1@gmail.com", "items": [ { "item_id": 2, "qty": 1, "unit_price": 49.98 }, {"item_id": 6, "qty": 1, "unit_price": 37.75} ] }' \
+    http://localhost:8448/order/add
+
+# User service test
+curl -XPOST -H 'Content-Type: application/json' \
+    -d '{"fname": "user1", "lname": "lname1", "email": "user1@gmail.com", "password": "mytest"}' \
+    http://user.retailapp.svc.cluster.local:8446/user/add
+curl -XGET -H 'Content-Type: application/json' http://user.retailapp.svc.cluster.local:8446/user/getuser?email=user1@gmail.com   
+
+# Kart service test
+curl http://kart.retailapp.svc.cluster.local:8445/kart/get?key=test3@test3.com:Kart

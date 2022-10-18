@@ -1,0 +1,29 @@
+apiVersion: v1
+kind: Secret
+metadata:
+  name: rdspg-password
+  namespace: retailapp
+type: Opaque
+data:
+  password: cG9zdGdyZXM=
+---
+apiVersion: rds.services.k8s.aws/v1alpha1
+kind: DBInstance
+metadata:
+  name: rdspg
+  namespace: retailapp
+spec:
+  allocatedStorage: 20
+  dbInstanceClass: db.t4g.micro
+  dbInstanceIdentifier: rdspg
+  dbSubnetGroupName: <dbSubnetGroupName>
+  vpcSecurityGroupIDs:
+    - <vpcSecurityGroupIDs>
+  storageEncrypted: true
+  engine: postgres
+  engineVersion: "14"
+  masterUsername: "postgres"
+  masterUserPassword:
+    namespace: retailapp
+    name: "rdspg-password"
+    key: password
