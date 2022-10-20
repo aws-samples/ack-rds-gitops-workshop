@@ -92,8 +92,8 @@ function clone_git()
     print_line
     cd ${HOME}/environment
     rm -rf ack.gitlab ack.codecommit
-    git clone https://github.com/ajrajkumar/ack-gitops-workshop.git ack.gitlab
-    git clone https://git-codecommit.${AWS_REGION}.amazonaws.com/v1/repos/ack-gitops-workshop ack.codecommit
+    git clone https://github.com/aws-samples/ack-rds-gitops-workshop ack.gitlab
+    git clone https://git-codecommit.${AWS_REGION}.amazonaws.com/v1/repos/ack-rds-gitops-workshop ack.codecommit
     cd ack.codecommit
     cp -rp ../ack.gitlab/* .
     print_line
@@ -340,8 +340,8 @@ install_packages
 
 export AWS_REGION=`curl -s http://169.254.169.254/latest/dynamic/instance-identity/document | jq .region -r`
 initial_cloud9_permission
-export EKS_STACK_NAME="ack-rds-workshop"
-export EKS_CFN_FILE="${HOME}/environment/ack.codecommit/apps/cfn/ack-rds-cfn-prereq.yaml"
+export EKS_STACK_NAME="ack-rds-gitops-workshop"
+export EKS_CFN_FILE="${HOME}/environment/ack.codecommit/cfn/ack-rds-cfn-prereq.yaml"
 export EKS_NAMESPACE="kube-system"
 export AWS_ACCOUNT_ID=$(aws sts get-caller-identity --query "Account" --output text) 
 export VPCID=$(aws cloudformation describe-stacks --region $AWS_REGION --query 'Stacks[].Outputs[?OutputKey == `VPC`].OutputValue' --output text)

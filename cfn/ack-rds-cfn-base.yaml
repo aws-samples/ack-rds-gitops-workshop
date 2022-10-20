@@ -1,6 +1,6 @@
 AWSTemplateFormatVersion: '2010-09-09'
 
-Description: 'Cloudformation Template DAT312 EKS ACK Controller Workshop'
+Description: 'Cloudformation Template DAT312 ACK-RDS-GITOPS-Workshop'
 
 Metadata:
   'AWS::CloudFormation::Interface':
@@ -522,7 +522,7 @@ Resources:
             - "#!/bin/bash"
             - su - ec2-user -c "
             - cd /home/ec2-user/environment
-            - wget https://raw.githubusercontent.com/ajrajkumar/ack-gitops-workshop/main/apps/cfn/prereq.sh
+            - wget https://raw.githubusercontent.com/aws-samples/ack-rds-gitops-workshop/main/scripts/prereq.sh
             - chmod +x prereq.sh
             - ./prereq.sh > prereq.log 2>&1 "
             - echo "Bootstrap completed with return code $?"
@@ -575,7 +575,7 @@ Resources:
     Type: AWS::CodeCommit::Repository
     Properties:
       RepositoryDescription: Empty Code Commit Repository for GitOps workshop
-      RepositoryName: ack-gitops-workshop
+      RepositoryName: ack-rds-gitops-workshop
 
 Outputs:
   TemplateID:
