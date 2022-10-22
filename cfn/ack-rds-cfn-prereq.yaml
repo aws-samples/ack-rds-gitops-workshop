@@ -2,36 +2,7 @@ AWSTemplateFormatVersion: '2010-09-09'
 
 Description: 'Cloudformation Template DAT312 ACK-RDS-GITOPS-Workshop'
 
-Metadata:
-  'AWS::CloudFormation::Interface':
-    ParameterGroups:
-    - Label:
-        default: 'VPC Parameters'
-      Parameters:
-      - ClassB
-    - Label:
-        default: Cloud9 Configuration
-      Parameters:
-      - C9InstanceType
-    ParameterLabels:
-      Application:
-        default: Application Name
-      ClassB:
-        default: ClassB 2nd Octet
-      C9InstanceType:
-        default: Cloud9 Instance Type
-        
 Parameters:
-    
-  Application:
-    Description: 'Specify Application Name'
-    Type: String
-    Default: 'eksack'
-
-  EKSIAMRoleName:
-    Type: String
-    Description: The name of the IAM role for the EKS service to assume.
-    Default: EKSIAMAdminRole
 
   EKSClusterName:
     Type: String
@@ -51,16 +22,6 @@ Parameters:
     Type: Number
     Description: Number of worker nodes to create
     Default: 2
-
-  NodeImageIdSSMParam:
-    Type: "AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>"
-    Default: /aws/service/eks/optimized-ami/1.14/amazon-linux-2/recommended/image_id
-    Description: AWS Systems Manager Parameter Store parameter of the AMI ID for the worker node instances.
-
-  NodeInstanceType:
-    Description: EC2 instance type for the node instances
-    Type: String
-    Default: t3.large
 
   LoabdBalancerVersion:
     Description: EKS Load Balancer Controller Version
@@ -327,13 +288,18 @@ Resources:
       - IpProtocol: tcp
         FromPort: 5432
         ToPort: 5432
-        CidrIp: !Sub '10.0.0.0/8'
+        CidrIp: '10.0.0.0/8'
         Description: 'Access to AppServer Host Security Group for PG'
       - IpProtocol: tcp
         FromPort: 6379
         ToPort: 6379
-        CidrIp: !Sub '10.0.0.0/8'
+        CidrIp: '10.0.0.0/8'
         Description: 'Access to AppServer Host Security Group for Redis'
+      SecurityGroupEgress:
+      - IpProtocol: -1
+        FromPort: 0
+        ToPort: 65535
+        CidrIp: 0.0.0.0/0
       VpcId: !Ref VPC
       Tags:
       - Key: Name
@@ -405,7 +371,6 @@ Resources:
            - !Ref SubnetAPrivate
            - !Ref SubnetBPrivate
            - !Ref SubnetCPrivate
-    DependsOn: [EKSIAMRole,ControlPlaneSecurityGroup]
 
   EKSIAMRole:
     Type: AWS::IAM::Role
@@ -440,6 +405,11 @@ Resources:
           Value: !Sub "${AWS::StackName}-WorkerNodesSecurityGroup"
         - Key: !Sub "kubernetes.io/cluster/${EKSCluster}"
           Value: "owned"
+      SecurityGroupEgress:
+      - IpProtocol: -1
+        FromPort: 0
+        ToPort: 65535
+        CidrIp: 0.0.0.0/0
 
   WorkerNodesIngressFromWorkerNodes:
     Type: AWS::EC2::SecurityGroupIngress
@@ -518,7 +488,7 @@ Outputs:
     
   Region:
     Description: 'Region'
-    Value: '${AWS::Region}'
+    Value: !Sub '${AWS::Region}'
 
   StackName:
     Description: 'Stack name'
@@ -543,7 +513,7 @@ Outputs:
         'Fn::Sub': '${AWS::StackName}-DBSubnetGroup'
 
   ClusterSecurityGroup:
-    Value: !Sub ClusterSecurityGroup
+    Value: !Ref ClusterSecurityGroup
     Export:
       Name:
         'Fn::Sub': '${AWS::StackName}-ClusterSecurityGroup'

@@ -30,8 +30,7 @@ Parameters:
       - "no"
       - "yes"
     Description: Whether this stack is being deployed in a Workshop Studio environment or not. If not sure, leave as default of "no".
-    
-    
+       
   Application:
     Description: 'Specify Application Name'
     Type: String
@@ -127,16 +126,16 @@ Resources:
       DestinationCidrBlock: 0.0.0.0/0
       GatewayId: !Ref InternetGateway
 
-  SubnetRouteTableAssociation:
-    Type: 'AWS::EC2::SubnetRouteTableAssociation'
-    Properties:
-      SubnetId: !Ref SubnetBPublic
-      RouteTableId: !Ref RouteTable
-
-  SubnetRouteTableAssociation:
+  SubnetRouteTableAAssociation:
     Type: 'AWS::EC2::SubnetRouteTableAssociation'
     Properties:
       SubnetId: !Ref SubnetAPublic
+      RouteTableId: !Ref RouteTable
+
+  SubnetRouteTableBAssociation:
+    Type: 'AWS::EC2::SubnetRouteTableAssociation'
+    Properties:
+      SubnetId: !Ref SubnetBPublic
       RouteTableId: !Ref RouteTable
 
   natEip:
@@ -317,6 +316,12 @@ Resources:
       Tags:
       - Key: Name
         Value: !Sub '${AWS::StackName}-SecretSecurityGroup'
+      SecurityGroupEgress:
+      - IpProtocol: -1
+        FromPort: 0
+        ToPort: 65535
+        CidrIp: '0.0.0.0/0'
+
 
   SecretsManagerVPCEndpoint:
     Type: 'AWS::EC2::VPCEndpoint'
@@ -399,16 +404,16 @@ Resources:
             - ec2:ModifyInstanceAttribute
             - ec2:ReplaceIamInstanceProfileAssociation
             - iam:ListInstanceProfiles
-            - iam:PassRole
             Resource: "*"
+          - Effect: Allow
+            Action:
+            - iam:ListInstanceProfiles
+            - iam:PassRole
+            Resource: "arn:aws:iam::*:role/*"
 
   C9BootstrapInstanceLambda:
-    Description: Bootstrap Cloud9 instance
     Type: Custom::C9BootstrapInstanceLambda
     DependsOn:
-    - C9BootstrapInstanceLambdaFunction
-    - C9Instance
-    - C9InstanceProfile
     - C9LambdaExecutionRole
     Properties:
       Tags:
@@ -509,7 +514,6 @@ Resources:
       Tags:
         - Key: Environment
           Value: DAT312 Event
-      Content: Yaml
       DocumentType: Command
       Content:
         schemaVersion: '2.2'
@@ -529,7 +533,6 @@ Resources:
 
   C9BootstrapAssociation:
     Type: AWS::SSM::Association
-    DependsOn: C9OutputBucket
     Properties:
       Name: !Ref C9Bootstrap
       OutputLocation:
@@ -548,7 +551,6 @@ Resources:
       - Ref: C9Role
 
   C9Instance:
-    Description: "-"
     DependsOn: C9BootstrapAssociation
     Type: AWS::Cloud9::EnvironmentEC2
     Properties:
@@ -584,7 +586,7 @@ Outputs:
     
   Region:
     Description: 'Region'
-    Value: '${AWS::Region}'
+    Value: !Sub '${AWS::Region}'
 
   StackName:
     Description: 'Stack name'
@@ -622,3 +624,11 @@ Outputs:
       - ''
       - - !Sub https://${AWS::Region}.console.aws.amazon.com/cloud9/ide/
         - !Ref C9Instance
+
+  ApplicationName:
+     Description: Name of the Application
+     Value: !Ref Application
+
+  WorkShopStudio:
+     Description: Running on WorkshopStudio
+     Value: !Ref IsWorkshopStudioEnv
