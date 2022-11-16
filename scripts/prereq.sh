@@ -92,8 +92,7 @@ function clone_git()
     print_line
     cd ${HOME}/environment
     rm -rf ack.gitlab ack.codecommit
-    git clone https://github.com/kmsarabu/ack-rds-gitops-workshop ack.gitlab
-    #git clone https://github.com/aws-samples/ack-rds-gitops-workshop ack.gitlab
+    git clone https://github.com/aws-samples/ack-rds-gitops-workshop ack.gitlab
     git clone https://git-codecommit.${AWS_REGION}.amazonaws.com/v1/repos/ack-rds-gitops-workshop ack.codecommit
     cd ack.codecommit
     cp -rp ../ack.gitlab/* .
