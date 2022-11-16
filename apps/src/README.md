@@ -1,6 +1,6 @@
 # A Demo Retail Application micro services using PostgreSQL & Redis as backend
 
-This project uses the psycopg2 library to connect to PostgreSQL databases. Psycopg2 is released under the LGPL-3.0 license.
+This [project](https://github.com/aws-samples/ack-rds-gitops-workshop) uses the psycopg2 library to connect to PostgreSQL databases. Psycopg2 is released under the LGPL-3.0 license.
 
 ## Clone Git Repo
 
