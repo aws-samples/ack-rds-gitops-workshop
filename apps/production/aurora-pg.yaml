@@ -15,8 +15,8 @@ metadata:
 spec:
   backupRetentionPeriod: 7
   serverlessV2ScalingConfiguration:
-    maxCapacity: 64
-    minCapacity: 2
+    maxCapacity: 4
+    minCapacity: 0.5
   dbClusterIdentifier: ack-db
   dbSubnetGroupName: <dbSubnetGroupName>
   engine: aurora-postgresql

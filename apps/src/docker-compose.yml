@@ -26,10 +26,6 @@ services:
 
   postgresql:
     image: postgres:14
-    command: >
-      -c ssl=on
-      -c ssl_cert_file=/var/lib/postgresql/server.crt
-      -c ssl_key_file=/var/lib/postgresql/server.key
     ports:
       - 5432:5432
     environment:
@@ -39,8 +35,6 @@ services:
     volumes:
       - ./setup_schema.sql:/docker-entrypoint-initdb.d/init.sql
       - ./pgdata:/pgdata
-      - ./cert/server.crt:/var/lib/postgresql/server.crt
-      - ./cert/server.key:/var/lib/postgresql/server.key
 
   webapp:
     depends_on:
@@ -48,7 +42,7 @@ services:
     build:
       context: ./webapp
       dockerfile: Dockerfile
-    image: ksarabu/webapp:2.0
+    image: ack-rds-gitops-workshop/webapp:2.0
     ports:
       - 8443:8443
     volumes:
@@ -72,7 +66,7 @@ services:
     build:
       context: ./product
       dockerfile: Dockerfile
-    image: ksarabu/product:2.0
+    image: ack-rds-gitops-workshop/product:2.0
     ports:
       - 8444:8444
     environment:
@@ -89,7 +83,7 @@ services:
     build:
       context: ./user
       dockerfile: Dockerfile
-    image: ksarabu/user:2.0
+    image: ack-rds-gitops-workshop/user:2.0
     ports:
       - 8446:8446
     environment:
@@ -109,7 +103,7 @@ services:
     build:
       context: ./order
       dockerfile: Dockerfile
-    image: ksarabu/order:2.0
+    image: ack-rds-gitops-workshop/order:2.0
     ports:
       - 8448:8448
     environment:
@@ -126,7 +120,7 @@ services:
     build:
       context: ./kart
       dockerfile: Dockerfile
-    image: ksarabu/kart:2.0
+    image: ack-rds-gitops-workshop/kart:2.0
     ports:
       - 8445:8445
     environment:
