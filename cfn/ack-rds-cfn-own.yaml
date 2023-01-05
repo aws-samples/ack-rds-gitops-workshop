@@ -543,8 +543,8 @@ Resources:
             - su - ec2-user -c "
             - cd /home/ec2-user/environment
             - wget https://raw.githubusercontent.com/ajrajkumar/ack-rds-gitops-workshop/main/scripts/prereq_own.sh
-            - chmod +x prereq.sh
-            - ./prereq.sh > prereq.log 2>&1 "
+            - chmod +x prereq_own.sh
+            - ./prereq_own.sh > prereq.log 2>&1 "
             - echo "Bootstrap completed with return code $?"
 
   C9BootstrapAssociation:
