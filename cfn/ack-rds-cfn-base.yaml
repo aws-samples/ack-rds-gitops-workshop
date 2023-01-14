@@ -340,235 +340,7 @@ Resources:
         - - com.amazonaws.
           - !Ref 'AWS::Region'
           - .secretsmanager
-     
-  #============================================================================#
-  # Cloud9
-  #============================================================================#
   
-  C9Role:
-    Type: AWS::IAM::Role
-    Properties:
-      Tags:
-        - Key: Environment
-          Value: DAT312 Event
-      AssumeRolePolicyDocument:
-        Version: '2012-10-17'
-        Statement:
-        - Effect: Allow
-          Principal:
-            Service:
-            - ec2.amazonaws.com
-            - ssm.amazonaws.com
-          Action:
-          - sts:AssumeRole
-      ManagedPolicyArns:
-      - arn:aws:iam::aws:policy/AdministratorAccess
-      Path: "/"
-
-  C9LambdaExecutionRole:
-    Type: AWS::IAM::Role
-    Properties:
-      AssumeRolePolicyDocument:
-        Version: '2012-10-17'
-        Statement:
-        - Effect: Allow
-          Principal:
-            Service:
-            - lambda.amazonaws.com
-          Action:
-          - sts:AssumeRole
-      Path: "/"
-      Policies:
-      - PolicyName:
-          Fn::Join:
-          - ''
-          - - C9LambdaPolicy-
-            - Ref: AWS::Region
-        PolicyDocument:
-          Version: '2012-10-17'
-          Statement:
-          - Effect: Allow
-            Action:
-            - logs:CreateLogGroup
-            - logs:CreateLogStream
-            - logs:PutLogEvents
-            Resource: arn:aws:logs:*:*:*
-          - Effect: Allow
-            Action:
-            - cloudformation:DescribeStacks
-            - cloudformation:DescribeStackEvents
-            - cloudformation:DescribeStackResource
-            - cloudformation:DescribeStackResources
-            - ec2:DescribeInstances
-            - ec2:AssociateIamInstanceProfile
-            - ec2:ModifyInstanceAttribute
-            - ec2:ReplaceIamInstanceProfileAssociation
-            - iam:ListInstanceProfiles
-            Resource: "*"
-          - Effect: Allow
-            Action:
-            - iam:ListInstanceProfiles
-            - iam:PassRole
-            Resource: "arn:aws:iam::*:role/*"
-
-  C9BootstrapInstanceLambda:
-    Type: Custom::C9BootstrapInstanceLambda
-    DependsOn:
-    - C9LambdaExecutionRole
-    Properties:
-      Tags:
-        - Key: Environment
-          Value: DAT312 Event
-      ServiceToken:
-        Fn::GetAtt:
-        - C9BootstrapInstanceLambdaFunction
-        - Arn
-      REGION:
-        Ref: AWS::Region
-      StackName:
-        Ref: AWS::StackName
-      EnvironmentId:
-        Ref: C9Instance
-      LabIdeInstanceProfileName:
-        Ref: C9InstanceProfile
-      LabIdeInstanceProfileArn:
-        Fn::GetAtt:
-        - C9InstanceProfile
-        - Arn
-
-  C9BootstrapInstanceLambdaFunction:
-    Type: AWS::Lambda::Function
-    Properties:
-      Tags:
-        - Key: Environment
-          Value: DAT312 Event
-      Handler: index.lambda_handler
-      Role:
-        Fn::GetAtt:
-        - C9LambdaExecutionRole
-        - Arn
-      Runtime: python3.9
-      MemorySize: 2056
-      Timeout: '600'
-      Code:
-        ZipFile: |
-          from __future__ import print_function
-          import boto3
-          import json
-          import os
-          import time
-          import traceback
-          import cfnresponse
-          import logging
-
-          def lambda_handler(event, context):
-              print('event: {}'.format(event))
-              print('context: {}'.format(context))
-              responseData = {}
-
-              if event['RequestType'] == 'Create':
-                  try:
-                      # Open AWS clients
-                      ec2 = boto3.client('ec2')
-
-                      # Get the InstanceId of the Cloud9 IDE
-                      instance = ec2.describe_instances(Filters=[{'Name': 'tag:Name','Values': ['aws-cloud9-'+event['ResourceProperties']['StackName']+'-'+event['ResourceProperties']['EnvironmentId']]}])['Reservations'][0]['Instances'][0]
-                      logging.info('instance: {}'.format(instance))
-
-                      # Create the IamInstanceProfile request object
-                      iam_instance_profile = {
-                          'Arn': event['ResourceProperties']['LabIdeInstanceProfileArn'],
-                          'Name': event['ResourceProperties']['LabIdeInstanceProfileName']
-                      }
-                      logging.info('iam_instance_profile: {}'.format(iam_instance_profile))
-
-                      # Wait for Instance to become ready before adding Role
-                      instance_state = instance['State']['Name']
-                      logging.info('instance_state: {}'.format(instance_state))
-                      while instance_state != 'running':
-                          time.sleep(5)
-                          instance_state = ec2.describe_instances(InstanceIds=[instance['InstanceId']])
-                          logging.info('instance_state: {}'.format(instance_state))
-
-                      # attach instance profile
-                      response = ec2.associate_iam_instance_profile(IamInstanceProfile=iam_instance_profile, InstanceId=instance['InstanceId'])
-                      logging.info('response - associate_iam_instance_profile: {}'.format(response))
-                      r_ec2 = boto3.resource('ec2')
-
-                      responseData = {'Success': 'Started bootstrapping for instance: '+instance['InstanceId']}
-                      cfnresponse.send(event, context, cfnresponse.SUCCESS, responseData, 'CustomResourcePhysicalID')
-
-                  except Exception as e:
-                      logging.error(e, exc_info=True)
-                      responseData = {'Error': str(traceback.format_exc(e))}
-                      cfnresponse.send(event, context, cfnresponse.FAILED, responseData, 'CustomResourcePhysicalID')
-
-
-  C9OutputBucket:
-    Type: AWS::S3::Bucket
-    DeletionPolicy: Delete
-
-  C9Bootstrap:
-    Type: AWS::SSM::Document
-    Properties:
-      Tags:
-        - Key: Environment
-          Value: DAT312 Event
-      DocumentType: Command
-      Content:
-        schemaVersion: '2.2'
-        description: Bootstrap cloud9 for installing redisclient and other required libraries
-        mainSteps:
-        - action: aws:runShellScript
-          name: BootstrapTools
-          inputs:
-            runCommand:
-            - "#!/bin/bash"
-            - su - ec2-user -c "
-            - cd /home/ec2-user/environment
-            - wget https://raw.githubusercontent.com/aws-samples/ack-rds-gitops-workshop/main/scripts/prereq.sh
-            - chmod +x prereq.sh
-            - ./prereq.sh > prereq.log 2>&1 "
-            - echo "Bootstrap completed with return code $?"
-
-  C9BootstrapAssociation:
-    Type: AWS::SSM::Association
-    Properties:
-      Name: !Ref C9Bootstrap
-      OutputLocation:
-        S3Location:
-          OutputS3BucketName: !Ref C9OutputBucket
-          OutputS3KeyPrefix: bootstrapoutput
-      Targets:
-        - Key: tag:SSMBootstrap
-          Values:
-          - Active
-  C9InstanceProfile:
-    Type: AWS::IAM::InstanceProfile
-    Properties:
-      Path: "/"
-      Roles:
-      - Ref: C9Role
-
-  C9Instance:
-    DependsOn: C9BootstrapAssociation
-    Type: AWS::Cloud9::EnvironmentEC2
-    Properties:
-      Name: !Sub '${AWS::StackName}'
-      AutomaticStopTimeMinutes: 60
-      Description: AWS Cloud9 instance for DAT312 event
-      InstanceType: !Ref C9InstanceType
-      ImageId: amazonlinux-2-x86_64
-      SubnetId: !Ref SubnetAPublic
-      OwnerArn: !Sub 'arn:aws:sts::${AWS::AccountId}:assumed-role/WSParticipantRole/Participant'
-      Tags:
-        -
-          Key: SSMBootstrap
-          Value: Active
-        -
-          Key: Environment
-          Value: DAT312 Event
-
   #============================================================================#
   # Code Commit 
   #============================================================================#
@@ -579,6 +351,158 @@ Resources:
       RepositoryDescription: Empty Code Commit Repository for GitOps workshop
       RepositoryName: ack-rds-gitops-workshop
 
+
+  #============================================================================#
+  # Setting up AWSQS 
+  #============================================================================#
+
+  CFNExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      MaxSessionDuration: 8400
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: [resources.cloudformation.amazonaws.com, cloudformation.amazonaws.com, lambda.amazonaws.com, ec2.amazonaws.com]
+            Action: sts:AssumeRole
+      Path: "/"
+      Policies:
+        - PolicyName: ResourceTypePolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - "sts:GetCallerIdentity"
+                  - "eks:CreateCluster"
+                  - "eks:DeleteCluster"
+                  - "eks:DescribeCluster"
+                  - "eks:ListTagsForResource"
+                  - "eks:UpdateClusterVersion"
+                  - "eks:UpdateClusterConfig"
+                  - "eks:TagResource"
+                  - "eks:UntagResource"
+                  - "iam:PassRole"
+                  - "sts:AssumeRole"
+                  - "lambda:UpdateFunctionConfiguration"
+                  - "lambda:DeleteFunction"
+                  - "lambda:GetFunction"
+                  - "lambda:InvokeFunction"
+                  - "lambda:CreateFunction"
+                  - "lambda:UpdateFunctionCode"
+                  - "ec2:DescribeVpcs"
+                  - "ec2:DescribeSubnets"
+                  - "ec2:DescribeSecurityGroups"
+                  - "kms:CreateGrant"
+                  - "kms:DescribeKey"
+                  - "logs:CreateLogGroup"
+                  - "logs:CreateLogStream"
+                  - "logs:DescribeLogGroups"
+                  - "logs:DescribeLogStreams"
+                  - "logs:PutLogEvents"
+                  - "cloudwatch:ListMetrics"
+                  - "cloudwatch:PutMetricData"
+                Resource: "*"
+  
+  AWSQSGrants:
+    Type: Custom::AWSQSGrants
+    Properties:
+      ServiceToken: !GetAtt 'AWSQSGrantsLambda.Arn'
+      awsqs_execution_role: !GetAtt CFNExecutionRole.Arn
+      
+  AWSQSGrantsRole:
+    Type: AWS::IAM::Role
+    DependsOn: 
+     - CFNExecutionRole
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Path: /
+      Policies:
+        - PolicyName: AWSQSGrants-policy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - eks:DescribeCluster
+                  - iam:CreateRole
+                  - iam:AttachRolePolicy
+                  - iam:GetRole
+                  - iam:CreatePolicy
+                  - ec2:DescribeSubnets
+                  - memorydb:CreateSubnetGroup
+                  - cloudformation:*
+                Resource:
+                  - '*'
+              - Effect: Allow
+                Action:
+                 - iam:ListInstanceProfiles
+                 - iam:PassRole
+                Resource: "arn:aws:iam::*:role/*"
+
+  AWSQSGrantsLambda:
+    Type: AWS::Lambda::Function
+    Properties:
+      Description: Adding AWSQS public resource to cloudformation
+      Handler: index.lambda_handler
+      Runtime: python3.9
+      Role: !GetAtt 'AWSQSGrantsRole.Arn'
+      Timeout: 300
+      Code:
+        ZipFile: |
+              import boto3
+              import sys
+              import os
+              import urllib.request
+              import cfnresponse
+              import traceback
+              from botocore.exceptions import ClientError
+
+              def lambda_handler(event, context):
+                  status = cfnresponse.SUCCESS
+                  data = {}
+                  execution_role = event['ResourceProperties']['awsqs_execution_role']
+                  print(execution_role)
+                  print(event)
+                  try:
+                    client = boto3.client("cloudformation")
+                    response = client.activate_type(
+                       Type='RESOURCE',
+                       TypeName='AWSQS::EKS::Cluster',
+                       PublisherId='408988dff9e863704bcc72e7e13f8d645cee8311',
+                       AutoUpdate=True,
+                       ExecutionRoleArn= execution_role)
+                    
+                  except Exception as e:
+                    logging.error(e, exc_info=True)
+                    data = {'Error': str(traceback.format_exc(e))}
+                    status = cfnresponse.FAILED
+                  cfnresponse.send(event, context, status, data, 'CustomResourcePhysicalID')
+
+  EKSControlPlane:
+    Type: AWS::CloudFormation::Stack
+    DependsOn: [AWSQSGrants]
+    Properties:
+      TemplateURL: 'https://s3.amazonaws.com/ee-assets-prod-us-east-1/modules/ead3ed9cfcbe40ad871a44e121334d7f/v1/eks.yaml'
+      Parameters:
+        VPC: !Ref VPC
+        SubnetAPrivate: !Ref SubnetAPrivate
+        SubnetBPrivate: !Ref SubnetBPrivate
+        SubnetCPrivate: !Ref SubnetCPrivate
+        IsWorkshopStudioEnv: !Ref IsWorkshopStudioEnv
+        C9InstanceType: !Ref C9InstanceType
+        SubnetAPublic: !Ref SubnetAPublic
+  
 Outputs:
   TemplateID:
     Description: 'Template ID'
@@ -616,15 +540,6 @@ Outputs:
     Export:
       Name: !Sub '${AWS::StackName}-SecretsManagerVPCEndpoint'
   
-  Cloud9IDEURL:
-    Export:
-      Name:
-        'Fn::Sub': '${AWS::StackName}-Cloud9IDEURL'
-    Value: !Join
-      - ''
-      - - !Sub https://${AWS::Region}.console.aws.amazon.com/cloud9/ide/
-        - !Ref C9Instance
-
   ApplicationName:
      Description: Name of the Application
      Value: !Ref Application

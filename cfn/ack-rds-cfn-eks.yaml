@@ -2,50 +2,8 @@ AWSTemplateFormatVersion: '2010-09-09'
 
 Description: 'Cloudformation Template DAT312 ACK-RDS-GITOPS-Workshop'
 
-Metadata:
-  'AWS::CloudFormation::Interface':
-    ParameterGroups:
-    - Label:
-        default: 'VPC Parameters'
-      Parameters:
-      - ClassB
-    - Label:
-        default: Cloud9 Configuration
-      Parameters:
-      - C9InstanceType
-    ParameterLabels:
-      Application:
-        default: Application Name
-      ClassB:
-        default: ClassB 2nd Octet
-      C9InstanceType:
-        default: Cloud9 Instance Type
-        
 Parameters:
 
-  Application:
-    Description: 'Specify Application Name'
-    Type: String
-    Default: 'eksack'
-    
-  ClassB:
-    Description: 'Specify the 2nd Octet of IPv4 CIDR block for the VPC (10.XXX.0.0/16) in the range [0-255]'
-    Type: Number
-    Default: 40
-    ConstraintDescription: 'Must be in the range [0-255]'
-    MinValue: 0
-    MaxValue: 255
-
-  C9InstanceType:
-    AllowedValues:
-      - t2.micro
-      - t3.micro
-      - t3.small
-      - t3.medium
-    Default: t3.medium
-    Description: Amazon Cloud9 instance type
-    Type: String
-  
   EKSClusterName:
     Type: String
     Description: The desired name of your AWS EKS Cluster.
@@ -70,295 +28,50 @@ Parameters:
     Type: String
     Default: v2.4.1
 
+  SubnetAPublic:
+    Description: SubnetAPublic
+    Type: String
+    Default: subnet-0c40f93bba8c7a898
+
+  SubnetAPrivate:
+    Description: SubnetAPrivate
+    Type: String
+    Default: subnet-0c40f93bba8c7a898
+
+  SubnetBPrivate:
+    Description: SubnetBPrivate
+    Type: String
+    Default: subnet-0f890153b313f45b6
+
+  SubnetCPrivate:
+    Description: SubnetCPrivate
+    Type: String 
+    Default: subnet-0ad40ae4a0953a6e6
+
+  VPC:
+    Description: VPC ID
+    Type: String
+    Default: vpc-0ebb65d1194794109
+
+  OwnerRole:
+    Description: Owner of the EKS cluster
+    Type: String
+    Default: arn:aws:iam
+
+  IsWorkshopStudioEnv:
+    Type: String
+    Default: "no"
+    Description: Whether this stack is being deployed in a Workshop Studio environment or not. If not sure, leave as default of "no".
+
+  C9InstanceType:
+    Default: t3.medium
+    Description: Amazon Cloud9 instance type
+    Type: String
+
 Resources:
 
   #============================================================================#
-  # VPC Configuration
-  #============================================================================#
-  
-  VPC:
-    Type: 'AWS::EC2::VPC'
-    Properties:
-      CidrBlock: !Sub '10.${ClassB}.0.0/16'
-      EnableDnsSupport: true
-      EnableDnsHostnames: true
-      InstanceTenancy: default
-      Tags:
-      - Key: Name
-        Value: !Sub '${AWS::StackName}-vpc'
-        
-  InternetGateway:
-    Type: 'AWS::EC2::InternetGateway'
-    Properties:
-      Tags:
-       - Key: Name
-         Value: !Sub '${AWS::StackName}-igw'
-        
-  VPCGatewayAttachment:
-    Type: 'AWS::EC2::VPCGatewayAttachment'
-    Properties:
-      VpcId: !Ref VPC
-      InternetGatewayId: !Ref InternetGateway
-
-  SubnetAPublic:
-    Type: AWS::EC2::Subnet
-    Properties:
-      VpcId: !Ref VPC
-      CidrBlock: !Sub '10.${ClassB}.64.0/20'
-      AvailabilityZone: !Select [0, !GetAZs ]
-      MapPublicIpOnLaunch: true
-      Tags:
-        - Key: Name
-          Value: !Sub ${AWS::StackName}-pub-sub-a
-        - Key: kubernetes.io/role/elb
-          Value: 1
- 
-  SubnetBPublic:
-    Type: AWS::EC2::Subnet
-    Properties:
-      VpcId: !Ref VPC
-      CidrBlock: !Sub '10.${ClassB}.80.0/20'
-      AvailabilityZone: !Select [1, !GetAZs ]
-      MapPublicIpOnLaunch: true
-      Tags:
-        - Key: Name
-          Value: !Sub ${AWS::StackName}-pub-sub-b
-        - Key: kubernetes.io/role/elb
-          Value: 1
-
-  RouteTable:
-    Type: 'AWS::EC2::RouteTable'
-    Properties:
-      VpcId: !Ref VPC
-      Tags:
-        - Key: Name
-          Value: !Sub '${AWS::StackName}-vpc-rt'
-
-  RouteTablePublicInternetRoute:
-    Type: 'AWS::EC2::Route'
-    DependsOn: VPCGatewayAttachment
-    Properties:
-      RouteTableId: !Ref RouteTable
-      DestinationCidrBlock: 0.0.0.0/0
-      GatewayId: !Ref InternetGateway
-
-  SubnetRouteTableAAssociation:
-    Type: 'AWS::EC2::SubnetRouteTableAssociation'
-    Properties:
-      SubnetId: !Ref SubnetAPublic
-      RouteTableId: !Ref RouteTable
-
-  SubnetRouteTableBAssociation:
-    Type: 'AWS::EC2::SubnetRouteTableAssociation'
-    Properties:
-      SubnetId: !Ref SubnetBPublic
-      RouteTableId: !Ref RouteTable
-
-  natEip:
-    Type: AWS::EC2::EIP
-    Properties:
-      Domain: vpc
-
-  vpcNgw:
-    Type: AWS::EC2::NatGateway
-    DependsOn: VPCGatewayAttachment
-    Properties:
-      AllocationId: !GetAtt natEip.AllocationId
-      SubnetId: !Ref SubnetAPublic
-
-  SubnetAPrivate:
-    Type: 'AWS::EC2::Subnet'
-    Properties:
-      AvailabilityZone: !Select [0, !GetAZs '']
-      CidrBlock: !Sub '10.${ClassB}.16.0/20'
-      VpcId: !Ref VPC
-      Tags:
-      - Key: Name
-        Value: !Sub ${AWS::StackName}-pvt-a
-      - Key: kubernetes.io/role/internal-elb
-        Value: 1
-
-  SubnetBPrivate:
-    Type: 'AWS::EC2::Subnet'
-    Properties:
-      AvailabilityZone: !Select [1, !GetAZs '']
-      CidrBlock: !Sub '10.${ClassB}.32.0/20'
-      VpcId: !Ref VPC
-      Tags:
-      - Key: Name
-        Value: !Sub ${AWS::StackName}-pvt-b
-      - Key: kubernetes.io/role/internal-elb
-        Value: 1
-        
-  SubnetCPrivate:
-    Type: 'AWS::EC2::Subnet'
-    Properties:
-      AvailabilityZone: !Select [2, !GetAZs '']
-      CidrBlock: !Sub '10.${ClassB}.48.0/20'
-      VpcId: !Ref VPC
-      Tags:
-      - Key: Name
-        Value: !Sub ${AWS::StackName}-pvt-c
-      - Key: kubernetes.io/role/internal-elb
-        Value: 1
-
-  RouteTablePrivate:
-    Type: 'AWS::EC2::RouteTable'
-    Properties:
-      VpcId: !Ref VPC
-      Tags:
-      - Key: Name
-        Value: !Sub ${AWS::StackName}-pvt-rt
-        
-  rteToNgw:
-    Type: AWS::EC2::Route
-    Properties:
-      RouteTableId: !Ref RouteTablePrivate
-      DestinationCidrBlock: 0.0.0.0/0
-      NatGatewayId: !Ref vpcNgw
-
-  RouteTableAssociationAPrivate:
-    Type: 'AWS::EC2::SubnetRouteTableAssociation'
-    Properties:
-      SubnetId: !Ref SubnetAPrivate
-      RouteTableId: !Ref RouteTablePrivate
-      
-  RouteTableAssociationBPrivate:
-    Type: 'AWS::EC2::SubnetRouteTableAssociation'
-    Properties:
-      SubnetId: !Ref SubnetBPrivate
-      RouteTableId: !Ref RouteTablePrivate
-      
-  RouteTableAssociationCPrivate:
-    Type: 'AWS::EC2::SubnetRouteTableAssociation'
-    Properties:
-      SubnetId: !Ref SubnetCPrivate
-      RouteTableId: !Ref RouteTablePrivate
-
-  NetworkAclPublic:
-    Type: 'AWS::EC2::NetworkAcl'
-    Properties:
-      VpcId: !Ref VPC
-      Tags:
-      - Key: Name
-        Value: !Sub ${AWS::StackName}-nacl-pub
-
-  NetworkAclEntryInPublicAllowVPC:
-    Type: 'AWS::EC2::NetworkAclEntry'
-    Properties:
-      NetworkAclId: !Ref NetworkAclPublic
-      RuleNumber: 99
-      Protocol: -1
-      RuleAction: allow
-      Egress: false
-      CidrBlock: '0.0.0.0/0'
-
-  NetworkAclEntryOutPublicAllowVPC:
-    Type: 'AWS::EC2::NetworkAclEntry'
-    Properties:
-      NetworkAclId: !Ref NetworkAclPublic
-      RuleNumber: 99
-      Protocol: -1
-      RuleAction: allow
-      Egress: true
-      CidrBlock: '0.0.0.0/0'
-
-  SubnetNetworkAclAssociationAPublic:
-    Type: 'AWS::EC2::SubnetNetworkAclAssociation'
-    Properties:
-      SubnetId: !Ref SubnetAPublic
-      NetworkAclId: !Ref NetworkAclPublic
-
-  SubnetNetworkAclAssociationBPublic:
-    Type: 'AWS::EC2::SubnetNetworkAclAssociation'
-    Properties:
-      SubnetId: !Ref SubnetBPublic
-      NetworkAclId: !Ref NetworkAclPublic
-
-  NetworkAclPrivate:
-    Type: 'AWS::EC2::NetworkAcl'
-    Properties:
-      VpcId: !Ref VPC
-      Tags:
-      - Key: Name
-        Value: !Sub ${AWS::StackName}-nacl-pvt
-
-  SubnetNetworkAclAssociationAPrivate:
-    Type: 'AWS::EC2::SubnetNetworkAclAssociation'
-    Properties:
-      SubnetId: !Ref SubnetAPrivate
-      NetworkAclId: !Ref NetworkAclPrivate
-      
-  SubnetNetworkAclAssociationBPrivate:
-    Type: 'AWS::EC2::SubnetNetworkAclAssociation'
-    Properties:
-      SubnetId: !Ref SubnetBPrivate
-      NetworkAclId: !Ref NetworkAclPrivate
-      
-  SubnetNetworkAclAssociationCPrivate:
-    Type: 'AWS::EC2::SubnetNetworkAclAssociation'
-    Properties:
-      SubnetId: !Ref SubnetCPrivate
-      NetworkAclId: !Ref NetworkAclPrivate
-
-  NetworkAclEntryInPrivateAllowVPC:
-    Type: 'AWS::EC2::NetworkAclEntry'
-    Properties:
-      NetworkAclId: !Ref NetworkAclPrivate
-      RuleNumber: 99
-      Protocol: -1
-      RuleAction: allow
-      Egress: false
-      CidrBlock: '0.0.0.0/0'
-      
-  NetworkAclEntryOutPrivateAllowVPC:
-    Type: 'AWS::EC2::NetworkAclEntry'
-    Properties:
-      NetworkAclId: !Ref NetworkAclPrivate
-      RuleNumber: 99
-      Protocol: -1
-      RuleAction: allow
-      Egress: true
-      CidrBlock: '0.0.0.0/0'
-
-  SecretSecurityGroup:
-    Type: AWS::EC2::SecurityGroup
-    Properties:
-      GroupDescription:  !Join [ " - ", [ "Security group for Secrets Access ENIs", !Ref 'AWS::StackName' ] ] 
-      VpcId: !Ref VPC
-      SecurityGroupIngress:
-      - IpProtocol: -1
-        CidrIp: !Sub '10.${ClassB}.0.0/16'
-      Tags:
-      - Key: Name
-        Value: !Sub '${AWS::StackName}-SecretSecurityGroup'
-      SecurityGroupEgress:
-      - IpProtocol: -1
-        FromPort: 0
-        ToPort: 65535
-        CidrIp: '0.0.0.0/0'
-
-
-  SecretsManagerVPCEndpoint:
-    Type: 'AWS::EC2::VPCEndpoint'
-    Properties:
-      VpcEndpointType: 'Interface'
-      PrivateDnsEnabled: true
-      VpcId: !Ref VPC
-      SubnetIds:
-        - !Ref SubnetAPrivate
-        - !Ref SubnetBPrivate
-        - !Ref SubnetCPrivate
-      SecurityGroupIds:
-        - !Ref SecretSecurityGroup
-      ServiceName: !Join 
-        - ''
-        - - com.amazonaws.
-          - !Ref 'AWS::Region'
-          - .secretsmanager
-     
-  #============================================================================#
-  # Cloud9
+  # Cloud9 Environment
   #============================================================================#
   
   C9Role:
@@ -519,7 +232,6 @@ Resources:
                       responseData = {'Error': str(traceback.format_exc(e))}
                       cfnresponse.send(event, context, cfnresponse.FAILED, responseData, 'CustomResourcePhysicalID')
 
-
   C9OutputBucket:
     Type: AWS::S3::Bucket
     DeletionPolicy: Delete
@@ -542,14 +254,14 @@ Resources:
             - "#!/bin/bash"
             - su - ec2-user -c "
             - cd /home/ec2-user/environment
+            - wget https://raw.githubusercontent.com/aws-samples/ack-rds-gitops-workshop/main/scripts/prereq.sh
             - wget https://raw.githubusercontent.com/ajrajkumar/ack-rds-gitops-workshop/main/scripts/prereq_own.sh
             - chmod +x prereq_own.sh
-            - ./prereq_own.sh > prereq.log 2>&1 "
+            - ./prereq_own.sh > prereq_own.log 2>&1 "
             - echo "Bootstrap completed with return code $?"
 
   C9BootstrapAssociation:
     Type: AWS::SSM::Association
-    DependsOn: EKSCluster
     Properties:
       Name: !Ref C9Bootstrap
       OutputLocation:
@@ -560,7 +272,7 @@ Resources:
         - Key: tag:SSMBootstrap
           Values:
           - Active
-          
+
   C9InstanceProfile:
     Type: AWS::IAM::InstanceProfile
     Properties:
@@ -569,7 +281,7 @@ Resources:
       - Ref: C9Role
 
   C9Instance:
-    DependsOn: C9BootstrapAssociation
+    DependsOn: [C9BootstrapAssociation, EKSCluster, WorkerNodegroup]
     Type: AWS::Cloud9::EnvironmentEC2
     Properties:
       Name: !Sub '${AWS::StackName}'
@@ -585,18 +297,6 @@ Resources:
         -
           Key: Environment
           Value: DAT312 Event
-
-  #============================================================================#
-  # Code Commit 
-  #============================================================================#
-
-  CodeCommitRepository:
-    Type: AWS::CodeCommit::Repository
-    Properties:
-      RepositoryDescription: Empty Code Commit Repository for GitOps workshop
-      RepositoryName: ack-rds-gitops-workshop
-
-  # Starting of the merge
 
   #============================================================================#
   # Creating IAM role for ACK
@@ -904,10 +604,9 @@ Resources:
   #============================================================================#
   # EKS configuration
   #============================================================================#
-    
+  
   EKSCluster:
     Type: AWSQS::EKS::Cluster
-    DependsOn: AWSQSGrants
     Properties:
       Name: !Ref EKSClusterName
       RoleArn: !GetAtt EKSIAMRole.Arn
@@ -924,6 +623,7 @@ Resources:
           - Arn: !GetAtt C9Role.Arn
             Username: "AdminRole"
             Groups: ["system:masters"]
+
   EKSIAMRole:
     Type: AWS::IAM::Role
     Properties:
@@ -1032,152 +732,7 @@ Resources:
         - !Ref SubnetAPrivate
         - !Ref SubnetBPrivate
         - !Ref SubnetCPrivate
- 
-  #============================================================================#
-  # Setting up AWSQS 
-  #============================================================================#
 
-  CFNExecutionRole:
-    Type: AWS::IAM::Role
-    Properties:
-      MaxSessionDuration: 8400
-      AssumeRolePolicyDocument:
-        Version: '2012-10-17'
-        Statement:
-          - Effect: Allow
-            Principal:
-              Service: [resources.cloudformation.amazonaws.com, cloudformation.amazonaws.com, lambda.amazonaws.com]
-            Action: sts:AssumeRole
-      Path: "/"
-      Policies:
-        - PolicyName: ResourceTypePolicy
-          PolicyDocument:
-            Version: '2012-10-17'
-            Statement:
-              - Effect: Allow
-                Action:
-                  - "sts:GetCallerIdentity"
-                  - "eks:CreateCluster"
-                  - "eks:DeleteCluster"
-                  - "eks:DescribeCluster"
-                  - "eks:ListTagsForResource"
-                  - "eks:UpdateClusterVersion"
-                  - "eks:UpdateClusterConfig"
-                  - "eks:TagResource"
-                  - "eks:UntagResource"
-                  - "iam:PassRole"
-                  - "sts:AssumeRole"
-                  - "lambda:UpdateFunctionConfiguration"
-                  - "lambda:DeleteFunction"
-                  - "lambda:GetFunction"
-                  - "lambda:InvokeFunction"
-                  - "lambda:CreateFunction"
-                  - "lambda:UpdateFunctionCode"
-                  - "ec2:DescribeVpcs"
-                  - "ec2:DescribeSubnets"
-                  - "ec2:DescribeSecurityGroups"
-                  - "kms:CreateGrant"
-                  - "kms:DescribeKey"
-                  - "logs:CreateLogGroup"
-                  - "logs:CreateLogStream"
-                  - "logs:DescribeLogGroups"
-                  - "logs:DescribeLogStreams"
-                  - "logs:PutLogEvents"
-                  - "cloudwatch:ListMetrics"
-                  - "cloudwatch:PutMetricData"
-                Resource: "*"
-  VpcProxyRole:
-    Type: AWS::IAM::Role
-    Properties:
-      RoleName: CloudFormation-Kubernetes-VPC
-      AssumeRolePolicyDocument:
-        Version: '2012-10-17'
-        Statement:
-          - Effect: Allow
-            Principal:
-              Service:
-                - lambda.amazonaws.com
-            Action: sts:AssumeRole
-      Path: "/"
-      ManagedPolicyArns:
-        - !Sub 'arn:${AWS::Partition}:iam::aws:policy/service-role/AWSLambdaENIManagementAccess'
-        - !Sub 'arn:${AWS::Partition}:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole'
-
-  AWSQSGrants:
-    Type: Custom::AWSQSGrants
-    Properties:
-      ServiceToken: !GetAtt 'AWSQSGrantsLambda.Arn'
-      awsqs_execution_role: !GetAtt CFNExecutionRole.Arn
-      
-  AWSQSGrantsRole:
-    Type: AWS::IAM::Role
-    Properties:
-      AssumeRolePolicyDocument:
-        Version: '2012-10-17'
-        Statement:
-          - Effect: Allow
-            Principal:
-              Service: lambda.amazonaws.com
-            Action: sts:AssumeRole
-      ManagedPolicyArns:
-        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
-      Path: /
-      Policies:
-        - PolicyName: AWSQSGrants-policy
-          PolicyDocument:
-            Version: '2012-10-17'
-            Statement:
-              - Effect: Allow
-                Action:
-                  - eks:DescribeCluster
-                  - iam:CreateRole
-                  - iam:DescribeRole
-                  - iam:AttachRolePolicy
-                  - iam:GetRole
-                  - iam:CreatePolicy
-                  - ec2:DescribeSubnets
-                  - memorydb:CreateSubnetGroup
-                Resource:
-                  - '*'
-
-  AWSQSGrantsLambda:
-    Type: AWS::Lambda::Function
-    Properties:
-      Description: Adding AWSQS public resource to cloudformation
-      Handler: index.lambda_handler
-      Runtime: python3.9
-      Role: !GetAtt 'AWSQSGrantsRole.Arn'
-      Timeout: 300
-      Code:
-        ZipFile: |
-              import boto3
-              import sys
-              import os
-              import urllib.request
-              import cfnresponse
-              import traceback
-              from botocore.exceptions import ClientError
-
-              def lambda_handler(event, context):
-                  status = cfnresponse.SUCCESS
-                  data = {}
-                  execution_role = event['ResourceProperties']['awsqs_execution_role']
-                  try:
-                    client = boto3.client("cloudformation")
-                    response = client.activate_type(
-                       Type='RESOURCE',
-                       TypeName='AWSQS::EKS::Cluster',
-                       PublisherId='408988dff9e863704bcc72e7e13f8d645cee8311',
-                       AutoUpdate=True,
-                       ExecutionRoleArn= execution_role)
-                    
-                  except Exception as e:
-                    logging.error(e, exc_info=True)
-                    data = {'Error': str(traceback.format_exc(e))}
-                    status = cfnresponse.FAILED
-                  cfnresponse.send(event, context, status, data, 'CustomResourcePhysicalID')
-                     
-  
 Outputs:
   TemplateID:
     Description: 'Template ID'
@@ -1190,43 +745,6 @@ Outputs:
   StackName:
     Description: 'Stack name'
     Value: !Sub '${AWS::StackName}'
-
-  VPC:
-    Description: 'VPC'
-    Value: !Ref VPC
-    Export:
-      Name: !Sub '${AWS::StackName}-VPC'
-
-  SubnetAPrivate:
-    Description: 'SubnetAPrivate'
-    Value: !Ref SubnetAPrivate
-
-  SubnetBPrivate:
-    Description: 'SubnetBPrivate'
-    Value: !Ref SubnetBPrivate
-      
-  SubnetCPrivate:
-    Description: 'SubnetCPrivate'
-    Value: !Ref SubnetCPrivate
-
-  SecretsManagerVPCEndpoint:
-    Description: Secrets Manager VPC Endpoint
-    Value: !Ref SecretsManagerVPCEndpoint
-    Export:
-      Name: !Sub '${AWS::StackName}-SecretsManagerVPCEndpoint'
-  
-  Cloud9IDEURL:
-    Export:
-      Name:
-        'Fn::Sub': '${AWS::StackName}-Cloud9IDEURL'
-    Value: !Join
-      - ''
-      - - !Sub https://${AWS::Region}.console.aws.amazon.com/cloud9/ide/
-        - !Ref C9Instance
-
-  ApplicationName:
-     Description: Name of the Application
-     Value: !Ref Application
 
   EKSRole:
     Value: !Ref EKSIAMRole
@@ -1259,4 +777,13 @@ Outputs:
    Value: !GetAtt ACKGrants.memorydb_azs
 
   MemoryDBAllowedSubnets:
-    Value: !GetAtt ACKGrants.memorydb_subnets 
+    Value: !GetAtt ACKGrants.memorydb_subnets
+
+  Cloud9IDEURL:
+    Export:
+      Name:
+        'Fn::Sub': '${AWS::StackName}-Cloud9IDEURL'
+    Value: !Join
+      - ''
+      - - !Sub https://${AWS::Region}.console.aws.amazon.com/cloud9/ide/
+        - !Ref C9Instance
