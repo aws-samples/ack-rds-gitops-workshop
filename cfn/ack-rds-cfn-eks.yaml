@@ -68,6 +68,9 @@ Parameters:
     Description: Amazon Cloud9 instance type
     Type: String
 
+Conditions:
+    isWorkshopStudio: !Equals [ !Ref IsWorkshopStudioEnv, "yes"]
+
 Resources:
 
   #============================================================================#
@@ -255,9 +258,9 @@ Resources:
             - su - ec2-user -c "
             - cd /home/ec2-user/environment
             - wget https://raw.githubusercontent.com/aws-samples/ack-rds-gitops-workshop/main/scripts/prereq.sh
-            - wget https://raw.githubusercontent.com/ajrajkumar/ack-rds-gitops-workshop/main/scripts/prereq_own.sh
-            - chmod +x prereq_own.sh
-            - ./prereq_own.sh > prereq_own.log 2>&1 "
+            - wget https://raw.githubusercontent.com/ajrajkumar/ack-rds-gitops-workshop/main/scripts/prereq.sh
+            - chmod +x prereq.sh
+            - ./prereq.sh > prereq.log 2>&1 "
             - echo "Bootstrap completed with return code $?"
 
   C9BootstrapAssociation:
@@ -290,6 +293,11 @@ Resources:
       InstanceType: !Ref C9InstanceType
       ImageId: amazonlinux-2-x86_64
       SubnetId: !Ref SubnetAPublic
+      OwnerArn: 
+        Fn::If: 
+          - isWorkshopStudio
+          - !Sub 'arn:aws:sts::${AWS::AccountId}:assumed-role/WSParticipantRole/Participant'
+          - !Ref "AWS::NoValue"
       Tags:
         -
           Key: SSMBootstrap

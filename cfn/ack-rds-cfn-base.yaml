@@ -54,6 +54,16 @@ Parameters:
     Description: Amazon Cloud9 instance type
     Type: String
 
+  AssetsBucketName:
+    Description: Cloudformation template bucket Name
+    Type: String
+    Default: ee-assets-prod-us-east-1
+
+  AssetsBucketPrefix:
+    Description: Cloudformation template bucket Name
+    Type: String
+    Default: modules/ead3ed9cfcbe40ad871a44e121334d7f/v1/
+
 Resources:
 
   #============================================================================#
@@ -493,7 +503,7 @@ Resources:
     Type: AWS::CloudFormation::Stack
     DependsOn: [AWSQSGrants]
     Properties:
-      TemplateURL: 'https://s3.amazonaws.com/ee-assets-prod-us-east-1/modules/ead3ed9cfcbe40ad871a44e121334d7f/v1/eks.yaml'
+      TemplateURL: !Sub 'https://s3.amazonaws.com/${AssetsBucketName}/${AssetsBucketPrefix}ack-rds-cfn-eks.yaml'
       Parameters:
         VPC: !Ref VPC
         SubnetAPrivate: !Ref SubnetAPrivate
