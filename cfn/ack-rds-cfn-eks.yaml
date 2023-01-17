@@ -257,8 +257,7 @@ Resources:
             - "#!/bin/bash"
             - su - ec2-user -c "
             - cd /home/ec2-user/environment
-            - wget1 https://raw.githubusercontent.com/aws-samples/ack-rds-gitops-workshop/main/scripts/prereq.sh
-            - wget https://raw.githubusercontent.com/ajrajkumar/ack-rds-gitops-workshop/main/scripts/prereq.sh
+            - wget https://raw.githubusercontent.com/aws-samples/ack-rds-gitops-workshop/main/scripts/prereq.sh
             - chmod +x prereq.sh
             - ./prereq.sh > prereq.log 2>&1 "
             - echo "Bootstrap completed with return code $?"
