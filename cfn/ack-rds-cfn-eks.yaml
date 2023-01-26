@@ -28,6 +28,11 @@ Parameters:
     Type: String
     Default: v2.4.1
 
+  SubnetAPublic:
+    Description: SubnetAPublic
+    Type: String
+    Default: subnet-0c40f93bba8c7a898
+
   SubnetAPrivate:
     Description: SubnetAPrivate
     Type: String
@@ -44,11 +49,261 @@ Parameters:
     Default: subnet-0ad40ae4a0953a6e6
 
   VPC:
-     Description: VPC ID
-     Type: String
-     Default: vpc-0ebb65d1194794109
+    Description: VPC ID
+    Type: String
+    Default: vpc-0ebb65d1194794109
+
+  OwnerRole:
+    Description: Owner of the EKS cluster
+    Type: String
+    Default: arn:aws:iam
+
+  IsWorkshopStudioEnv:
+    Type: String
+    Default: "no"
+    Description: Whether this stack is being deployed in a Workshop Studio environment or not. If not sure, leave as default of "no".
+
+  C9InstanceType:
+    Default: t3.medium
+    Description: Amazon Cloud9 instance type
+    Type: String
+
+Conditions:
+    isWorkshopStudio: !Equals [ !Ref IsWorkshopStudioEnv, "yes"]
 
 Resources:
+
+  #============================================================================#
+  # Cloud9 Environment
+  #============================================================================#
+  
+  C9Role:
+    Type: AWS::IAM::Role
+    Properties:
+      Tags:
+        - Key: Environment
+          Value: DAT312 Event
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+        - Effect: Allow
+          Principal:
+            Service:
+            - ec2.amazonaws.com
+            - ssm.amazonaws.com
+          Action:
+          - sts:AssumeRole
+      ManagedPolicyArns:
+      - arn:aws:iam::aws:policy/AdministratorAccess
+      Path: "/"
+
+  C9LambdaExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+        - Effect: Allow
+          Principal:
+            Service:
+            - lambda.amazonaws.com
+          Action:
+          - sts:AssumeRole
+      Path: "/"
+      Policies:
+      - PolicyName:
+          Fn::Join:
+          - ''
+          - - C9LambdaPolicy-
+            - Ref: AWS::Region
+        PolicyDocument:
+          Version: '2012-10-17'
+          Statement:
+          - Effect: Allow
+            Action:
+            - logs:CreateLogGroup
+            - logs:CreateLogStream
+            - logs:PutLogEvents
+            Resource: arn:aws:logs:*:*:*
+          - Effect: Allow
+            Action:
+            - cloudformation:DescribeStacks
+            - cloudformation:DescribeStackEvents
+            - cloudformation:DescribeStackResource
+            - cloudformation:DescribeStackResources
+            - ec2:DescribeInstances
+            - ec2:AssociateIamInstanceProfile
+            - ec2:ModifyInstanceAttribute
+            - ec2:ReplaceIamInstanceProfileAssociation
+            - iam:ListInstanceProfiles
+            Resource: "*"
+          - Effect: Allow
+            Action:
+            - iam:ListInstanceProfiles
+            - iam:PassRole
+            Resource: "arn:aws:iam::*:role/*"
+
+  C9BootstrapInstanceLambda:
+    Type: Custom::C9BootstrapInstanceLambda
+    DependsOn:
+    - C9LambdaExecutionRole
+    Properties:
+      Tags:
+        - Key: Environment
+          Value: DAT312 Event
+      ServiceToken:
+        Fn::GetAtt:
+        - C9BootstrapInstanceLambdaFunction
+        - Arn
+      REGION:
+        Ref: AWS::Region
+      StackName:
+        Ref: AWS::StackName
+      EnvironmentId:
+        Ref: C9Instance
+      LabIdeInstanceProfileName:
+        Ref: C9InstanceProfile
+      LabIdeInstanceProfileArn:
+        Fn::GetAtt:
+        - C9InstanceProfile
+        - Arn
+
+  C9BootstrapInstanceLambdaFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      Tags:
+        - Key: Environment
+          Value: DAT312 Event
+      Handler: index.lambda_handler
+      Role:
+        Fn::GetAtt:
+        - C9LambdaExecutionRole
+        - Arn
+      Runtime: python3.9
+      MemorySize: 2056
+      Timeout: '600'
+      Code:
+        ZipFile: |
+          from __future__ import print_function
+          import boto3
+          import json
+          import os
+          import time
+          import traceback
+          import cfnresponse
+          import logging
+
+          def lambda_handler(event, context):
+              print('event: {}'.format(event))
+              print('context: {}'.format(context))
+              responseData = {}
+
+              if event['RequestType'] == 'Create':
+                  try:
+                      # Open AWS clients
+                      ec2 = boto3.client('ec2')
+
+                      # Get the InstanceId of the Cloud9 IDE
+                      instance = ec2.describe_instances(Filters=[{'Name': 'tag:Name','Values': ['aws-cloud9-'+event['ResourceProperties']['StackName']+'-'+event['ResourceProperties']['EnvironmentId']]}])['Reservations'][0]['Instances'][0]
+                      logging.info('instance: {}'.format(instance))
+
+                      # Create the IamInstanceProfile request object
+                      iam_instance_profile = {
+                          'Arn': event['ResourceProperties']['LabIdeInstanceProfileArn'],
+                          'Name': event['ResourceProperties']['LabIdeInstanceProfileName']
+                      }
+                      logging.info('iam_instance_profile: {}'.format(iam_instance_profile))
+
+                      # Wait for Instance to become ready before adding Role
+                      instance_state = instance['State']['Name']
+                      logging.info('instance_state: {}'.format(instance_state))
+                      while instance_state != 'running':
+                          time.sleep(5)
+                          instance_state = ec2.describe_instances(InstanceIds=[instance['InstanceId']])
+                          logging.info('instance_state: {}'.format(instance_state))
+
+                      # attach instance profile
+                      response = ec2.associate_iam_instance_profile(IamInstanceProfile=iam_instance_profile, InstanceId=instance['InstanceId'])
+                      logging.info('response - associate_iam_instance_profile: {}'.format(response))
+                      r_ec2 = boto3.resource('ec2')
+
+                      responseData = {'Success': 'Started bootstrapping for instance: '+instance['InstanceId']}
+                      cfnresponse.send(event, context, cfnresponse.SUCCESS, responseData, 'CustomResourcePhysicalID')
+
+                  except Exception as e:
+                      logging.error(e, exc_info=True)
+                      responseData = {'Error': str(traceback.format_exc(e))}
+                      cfnresponse.send(event, context, cfnresponse.FAILED, responseData, 'CustomResourcePhysicalID')
+
+  C9OutputBucket:
+    Type: AWS::S3::Bucket
+    DeletionPolicy: Delete
+
+  C9Bootstrap:
+    Type: AWS::SSM::Document
+    Properties:
+      Tags:
+        - Key: Environment
+          Value: DAT312 Event
+      DocumentType: Command
+      Content:
+        schemaVersion: '2.2'
+        description: Bootstrap cloud9 for installing redisclient and other required libraries
+        mainSteps:
+        - action: aws:runShellScript
+          name: BootstrapTools
+          inputs:
+            runCommand:
+            - "#!/bin/bash"
+            - su - ec2-user -c "
+            - cd /home/ec2-user/environment
+            - wget https://raw.githubusercontent.com/aws-samples/ack-rds-gitops-workshop/main/scripts/prereq.sh
+            - chmod +x prereq.sh
+            - ./prereq.sh > prereq.log 2>&1 "
+            - echo "Bootstrap completed with return code $?"
+
+  C9BootstrapAssociation:
+    Type: AWS::SSM::Association
+    Properties:
+      Name: !Ref C9Bootstrap
+      OutputLocation:
+        S3Location:
+          OutputS3BucketName: !Ref C9OutputBucket
+          OutputS3KeyPrefix: bootstrapoutput
+      Targets:
+        - Key: tag:SSMBootstrap
+          Values:
+          - Active
+
+  C9InstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Path: "/"
+      Roles:
+      - Ref: C9Role
+
+  C9Instance:
+    DependsOn: [C9BootstrapAssociation, EKSCluster, WorkerNodegroup]
+    Type: AWS::Cloud9::EnvironmentEC2
+    Properties:
+      Name: !Sub '${AWS::StackName}'
+      AutomaticStopTimeMinutes: 60
+      Description: AWS Cloud9 instance for DAT312 event
+      InstanceType: !Ref C9InstanceType
+      ImageId: amazonlinux-2-x86_64
+      SubnetId: !Ref SubnetAPublic
+      OwnerArn: 
+        Fn::If: 
+          - isWorkshopStudio
+          - !Sub 'arn:aws:sts::${AWS::AccountId}:assumed-role/WSParticipantRole/Participant'
+          - !Ref "AWS::NoValue"
+      Tags:
+        -
+          Key: SSMBootstrap
+          Value: Active
+        -
+          Key: Environment
+          Value: DAT312 Event
 
   #============================================================================#
   # Creating IAM role for ACK
@@ -356,13 +611,12 @@ Resources:
   #============================================================================#
   # EKS configuration
   #============================================================================#
-    
+  
   EKSCluster:
-    Type: AWS::EKS::Cluster
+    Type: AWSQS::EKS::Cluster
     Properties:
       Name: !Ref EKSClusterName
       RoleArn: !GetAtt EKSIAMRole.Arn
-#      RoleArn: !Sub "arn:aws:iam::${AWS::AccountId}:root"
       Version: !Ref KubernetesVersion
       ResourcesVpcConfig:
           SecurityGroupIds:
@@ -371,6 +625,11 @@ Resources:
            - !Ref SubnetAPrivate
            - !Ref SubnetBPrivate
            - !Ref SubnetCPrivate
+      KubernetesApiAccess:
+        Roles:
+          - Arn: !GetAtt C9Role.Arn
+            Username: "AdminRole"
+            Groups: ["system:masters"]
 
   EKSIAMRole:
     Type: AWS::IAM::Role
@@ -526,3 +785,12 @@ Outputs:
 
   MemoryDBAllowedSubnets:
     Value: !GetAtt ACKGrants.memorydb_subnets
+
+  Cloud9IDEURL:
+    Export:
+      Name:
+        'Fn::Sub': '${AWS::StackName}-Cloud9IDEURL'
+    Value: !Join
+      - ''
+      - - !Sub https://${AWS::Region}.console.aws.amazon.com/cloud9/ide/
+        - !Ref C9Instance
