@@ -11,7 +11,7 @@ MarkupSafe>=1.1.1
 requests==2.23.0
 six>=1.15.0
 urllib3==1.26.5
-Werkzeug==2.0.2
+Werkzeug==2.2.3
 flask_wtf
 email_validator
 flask-restful
